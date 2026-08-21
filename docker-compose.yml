@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  api-go:
+    build: ./api-go
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NODEJS_API_URL=http://api-nodejs:3000
+    depends_on:
+      - api-nodejs
+    networks:
+      - app-network
+
+  api-nodejs:
+    build: ./api-nodejs
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=your-secret-key
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_GO_URL=http://localhost:8080
+      - VITE_API_NODEJS_URL=http://localhost:3000
+    depends_on:
+      - api-go
+      - api-nodejs
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
