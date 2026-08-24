@@ -1,0 +1,276 @@
+openapi: 3.1.1
+info:
+  title: Node.js Statistics API
+  description: API for calculating statistics from QR factorization matrices
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api-node.azurecontainerapps.io
+    description: Production server
+
+paths:
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the health status of the API service
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "nodejs-api"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+              example:
+                status: "healthy"
+                service: "nodejs-api"
+                timestamp: "2024-01-15T10:30:00Z"
+
+  /api/login:
+    post:
+      tags:
+        - Authentication
+      summary: Generate JWT token
+      description: Generates a JWT token for authenticated requests to /api/statistics endpoint
+      operationId: postLogin
+      requestBody:
+        description: Optional credentials for token generation
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "test-user"
+                password:
+                  type: string
+                  example: "test-password"
+            example:
+              username: "test-user"
+              password: "test-password"
+      responses:
+        '200':
+          description: JWT token generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - token
+                properties:
+                  token:
+                    type: string
+                    description: JWT Bearer token with 1 hour expiration
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/statistics:
+    post:
+      tags:
+        - Statistics
+      summary: Calculate matrix statistics
+      description: Calculates statistics (max, min, average, sum) from Q, R, and Original matrices. Requires JWT authentication.
+      operationId: postStatistics
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        description: Matrices data from QR factorization for statistics calculation
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatisticsRequest'
+            example:
+              q: [[0.169, 0.886], [0.507, 0.425], [0.845, -0.037]]
+              r: [[5.916, 7.086], [0, 1.048]]
+              original: [[1, 2], [3, 4], [5, 6]]
+      responses:
+        '200':
+          description: Statistics calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsResponse'
+              example:
+                statistics:
+                  maxValue: 7.086
+                  minValue: -0.037
+                  average: 1.234567
+                  sum: 123.456789
+                  totalValues: 6
+                  diagonalMatrices: [false, false, false]
+                  matrixNames: ["Q", "R", "Original"]
+                matrices:
+                  q: [[0.169, 0.886], [0.507, 0.425], [0.845, -0.037]]
+                  r: [[5.916, 7.086], [0, 1.048]]
+                  original: [[1, 2], [3, 4], [5, 6]]
+        '400':
+          description: Bad request - Missing or invalid required matrices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing or invalid JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Token is invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during statistics calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    MatrixData:
+      type: array
+      items:
+        type: array
+        items:
+          type: number
+      description: 2D array representing a matrix
+      example: [[1, 2], [3, 4], [5, 6]]
+
+    StatisticsRequest:
+      type: object
+      required:
+        - q
+        - r
+        - original
+      properties:
+        q:
+          $ref: '#/components/schemas/MatrixData'
+          description: Orthogonal matrix Q from QR decomposition
+        r:
+          $ref: '#/components/schemas/MatrixData'
+          description: Upper triangular matrix R from QR decomposition
+        original:
+          $ref: '#/components/schemas/MatrixData'
+          description: Original input matrix before QR factorization
+
+    Statistics:
+      type: object
+      required:
+        - maxValue
+        - minValue
+        - average
+        - sum
+        - totalValues
+        - diagonalMatrices
+        - matrixNames
+      properties:
+        maxValue:
+          type: number
+          format: float
+          description: Maximum value across all matrices
+          example: 7.086
+        minValue:
+          type: number
+          format: float
+          description: Minimum value across all matrices
+          example: -0.037
+        average:
+          type: number
+          format: float
+          description: Average value across all matrices (6 decimal places)
+          example: 1.234567
+        sum:
+          type: number
+          format: float
+          description: Sum of all values across all matrices (6 decimal places)
+          example: 123.456789
+        totalValues:
+          type: integer
+          description: Total count of numeric values
+          example: 6
+        diagonalMatrices:
+          type: array
+          items:
+            type: boolean
+          description: Array indicating if each matrix is diagonal (Q, R, Original)
+          example: [false, false, false]
+        matrixNames:
+          type: array
+          items:
+            type: string
+          description: Names of the matrices analyzed
+          example: ["Q", "R", "Original"]
+
+    StatisticsResponse:
+      type: object
+      required:
+        - statistics
+        - matrices
+      properties:
+        statistics:
+          $ref: '#/components/schemas/Statistics'
+          description: Calculated statistics from all matrices
+        matrices:
+          type: object
+          required:
+            - q
+            - r
+            - original
+          properties:
+            q:
+              $ref: '#/components/schemas/MatrixData'
+              description: Orthogonal matrix Q
+            r:
+              $ref: '#/components/schemas/MatrixData'
+              description: Upper triangular matrix R
+            original:
+              $ref: '#/components/schemas/MatrixData'
+              description: Original matrix
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Missing required data: q, r, and original matrices are required"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token authentication. Obtain token from /api/login endpoint. Token expires in 1 hour.
