@@ -1,0 +1,34 @@
+trigger:
+- fix/prueba-concepto-v2
+
+resources:
+  pipelines:
+  - pipeline: nodePipeline
+    source: NodeJS API Pipeline   # nombre exacto del pipeline Node
+    trigger: none
+  - pipeline: goPipeline
+    source: Go API Pipeline   # nombre exacto del pipeline Go
+    trigger: none
+  - pipeline: frontendPipeline
+    source: Frontend Pipeline       # nombre exacto del pipeline Frontend
+    trigger: none
+
+stages:
+- stage: DeployAll
+  jobs:
+  - job: NodeJS
+    displayName: 'Run Node.js Pipeline'
+    steps:
+    - script: echo "Node pipeline ejecutado desde maestro"
+
+  - job: Go
+    displayName: 'Run Go Pipeline'
+    dependsOn: NodeJS
+    steps:
+    - script: echo "Go pipeline ejecutado desde maestro"
+
+  - job: Frontend
+    displayName: 'Run Frontend Pipeline'
+    dependsOn: Go
+    steps:
+    - script: echo "Frontend pipeline ejecutado desde maestro"

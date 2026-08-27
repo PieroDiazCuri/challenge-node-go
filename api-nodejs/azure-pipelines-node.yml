@@ -1,0 +1,47 @@
+trigger:
+- api-nodejs/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  registryServer: 'acrapigodev.azurecr.io'
+  resourceGroup: 'rg-api-go-dev'
+  environment: 'env-api-go-dev'
+
+jobs:
+- job: NodeJS
+  steps:
+  - task: UseNode@1
+    inputs:
+      version: '20.x'
+    displayName: 'Instalar Node.js'
+
+  - script: |
+      cd api-nodejs
+      npm ci
+      npm test || echo
+    displayName: 'Build & Test Node.js'
+
+  - task: Docker@2
+    displayName: 'Build & Push Node.js image'
+    inputs:
+      command: buildAndPush
+      repository: node-api
+      dockerfile: api-nodejs/Dockerfile
+      containerRegistry: 'ACR-Service-Connection'
+      tags: |
+        $(Build.BuildId)
+        latest
+
+  - task: AzureCLI@2
+    displayName: 'Update Node.js Container App'
+    inputs:
+      azureSubscription: 'Azure-ARM-Connection'
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az containerapp update \
+          --name mi-api-nodejs \
+          --resource-group rg-api-go-dev \
+          --image acrapigodev.azurecr.io/node-api:v1

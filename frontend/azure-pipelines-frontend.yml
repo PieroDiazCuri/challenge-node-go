@@ -1,0 +1,44 @@
+trigger:
+- frontend/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  registryServer: 'acrapigodev.azurecr.io'
+  resourceGroup: 'rg-api-go-dev'
+  environment: 'env-api-go-dev'
+
+jobs:
+- job: Frontend
+  steps:
+  - task: UseNode@1
+    inputs:
+      version: '20.x'
+    displayName: 'Instalar Node.js para frontend'
+  - script: |
+      cd frontend
+      npm install
+      npm run build
+    displayName: 'Build frontend'
+  - task: Docker@2
+    displayName: 'Build & Push Frontend image'
+    inputs:
+      command: buildAndPush
+      repository: frontend
+      dockerfile: frontend/Dockerfile
+      containerRegistry: 'ACR-Service-Connection'
+      tags: |
+        $(Build.BuildId)
+        latest
+  - task: AzureCLI@2
+    displayName: 'Update Frontend Container App'
+    inputs:
+      azureSubscription: 'Azure-ARM-Connection'
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az containerapp update \
+          --name mi-frontend \
+          --resource-group $(resourceGroup) \
+          --image $(registryServer)/frontend:$(Build.BuildId)
