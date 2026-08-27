@@ -1,0 +1,39 @@
+trigger:
+- api-go/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  registryServer: 'acrapigodev.azurecr.io'
+  resourceGroup: 'rg-api-go-dev'
+  environment: 'env-api-go-dev'
+
+jobs:
+- job: Go
+  steps:
+  - script: |
+      cd api-go
+      go test ./...
+    displayName: 'Test Go API'
+  - task: Docker@2
+    displayName: 'Build & Push Go image'
+    inputs:
+      command: buildAndPush
+      repository: go-api
+      dockerfile: api-go/Dockerfile
+      containerRegistry: 'ACR-Service-Connection'
+      tags: |
+        $(Build.BuildId)
+        latest
+  - task: AzureCLI@2
+    displayName: 'Update Go Container App'
+    inputs:
+      azureSubscription: 'Azure-ARM-Connection'
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az containerapp update \
+          --name mi-api-go \
+          --resource-group $(resourceGroup) \
+          --image $(registryServer)/go-api:$(Build.BuildId)
