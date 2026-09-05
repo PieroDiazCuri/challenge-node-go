@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -43,4 +44,7 @@ func main() {
 
 	log.Printf("Server starting on port %s", port)
 	log.Fatal(app.Listen(":" + port))
+
+	apiKey := os.Getenv("API_KEY")
+	fmt.Println("API_KEY desde Azure:", apiKey)
 }
