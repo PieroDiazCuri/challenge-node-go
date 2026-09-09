@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 3000;
 // JWT secret
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+const apiKey = process.env.API_KEY;
+console.log("API_KEY desde Azure:", apiKey);
+
+
 // Middleware
 app.use(helmet());
 app.use(
